@@ -20,9 +20,12 @@ class Program
             Console.WriteLine("Directory does not exist");
             return;
         }
-        DisplayDirectoryContents(dir, 0);
+        DisplayContent(dir);
         
-        DisplayTheOldestItem(dir);
+        FileSystemInfoExtensions.DisplayDirectoryContents(dir, 0);
+        
+        DateTime oldest = dir.GetOldestItemDate();
+        
         Console.WriteLine("\n\n");
         SortedDictionary<string, int> filesAndCatalogs = GetFilesAndCatalogsSortedByLength(dir);
         DisplayFileExtensions(filesAndCatalogs);
@@ -30,82 +33,20 @@ class Program
         BinarySerialize(filesAndCatalogs);
         BinaryDeserialize();
     }
-    static void DisplayDirectoryContents(DirectoryInfo dir, int indent)
+    
+    static void DisplayContent(DirectoryInfo dir)
     {
-        foreach (var subDir in dir.GetDirectories())
-        {
-            Console.WriteLine(new String(' ', indent) + subDir.Name + " (" + subDir.GetFileSystemInfos().Length + $") {GetDosAttributes(subDir)}");
-            DisplayDirectoryContents(subDir, indent + 4);
-        }
+        Console.WriteLine("Files:");
         foreach (var f in dir.GetFiles())
         {
-            Console.WriteLine(new String(' ', indent) + f.Name + " " + f.Length + " bajtów " + $" {GetDosAttributes(f)}");
+            Console.WriteLine(f.Name);
         }
-        
-    }
-    
-    static string GetDosAttributes(FileSystemInfo file)
-    {
-        string attributes = "";
-        if ((file.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-        {
-            attributes += "R";
-        }else
-        {
-            attributes += "-";
-        }
-        if ((file.Attributes & FileAttributes.Archive) == FileAttributes.Archive)
-        {
-            attributes += "A";
-        }else
-        {
-            attributes += "-";
-        }
-        if ((file.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden)
-        {
-            attributes += "H";
-        }else
-        {
-            attributes += "-";
-        }
-        if ((file.Attributes & FileAttributes.System) == FileAttributes.System)
-        {
-            attributes += "S";
-        }else
-        {
-            attributes += "-";
-        }
-        
-        return attributes;
-    }
-    
-    static void DisplayTheOldestItem(DirectoryInfo dir)
-    {
-        DateTime oldest = DateTime.Now;
-        FileSystemInfo oldestItem = null;
-        foreach (var f in dir.GetFiles())
-        {
-            if (f.CreationTime < oldest)
-            {
-                oldest = f.CreationTime;
-                oldestItem = f;
-            }
-        }
-        
+        Console.WriteLine("\nCatalogs:");
         foreach (var subDir in dir.GetDirectories())
         {
-            if (subDir.CreationTime < oldest)
-            {
-                oldest = subDir.CreationTime;
-                oldestItem = subDir;
-            }
+            Console.WriteLine(subDir.Name);
         }
-        if(oldestItem == null)
-        {
-            Console.WriteLine("Directory is empty");
-            return;
-        }
-        Console.WriteLine("\nNajstarszy element: " + oldestItem.Name + " " + oldest);
+        Console.WriteLine("\n\n");
     }
 
     static SortedDictionary<string, int> GetFilesAndCatalogsSortedByLength(DirectoryInfo dir)
@@ -133,7 +74,29 @@ class Program
             Console.WriteLine(ext.Key + " " + ext.Value);
         }
     }
-    
+    [Serializable]
+    public class Comparer : IComparer<string>
+    {
+        public int Compare(string x, string y)
+        {
+            if(x == null || y == null)
+            {
+                throw new ArgumentNullException();
+            }
+            if (x.Length > y.Length)
+            {
+                return 1;
+            }
+            else if (x.Length < y.Length)
+            {
+                return -1;
+            }
+            else
+            {
+                return x.CompareTo(y);
+            }
+        }
+    }
     static void BinarySerialize(SortedDictionary<string, int> filesAndCatalogs)
     {
         Console.WriteLine("\n\n\nStarting binary serialization");
@@ -159,26 +122,88 @@ class Program
         Console.WriteLine("Deserialized");
     }
 }
-[Serializable]
-public class Comparer : IComparer<string>
+
+public static class DirectoryInfoExtensions
 {
-    public int Compare(string x, string y)
+    public static DateTime GetOldestItemDate(this DirectoryInfo dir)
     {
-        if(x == null || y == null)
+        DateTime oldest = DateTime.Now;
+        FileSystemInfo oldestFile = null;
+        foreach (var f in dir.GetFiles())
         {
-            throw new ArgumentNullException();
+            if (f.CreationTime < oldest)
+            {
+                oldest = f.CreationTime;
+                oldestFile = f;
+            }
         }
-        if (x.Length > y.Length)
+
+        foreach (var subDir in dir.GetDirectories())
         {
-            return 1;
+            if (subDir.CreationTime < oldest)
+            {
+                oldest = subDir.CreationTime;
+                oldestFile = subDir;
+            }
         }
-        else if (x.Length < y.Length)
+        if(oldestFile == null)
         {
-            return -1;
+            Console.WriteLine("Directory is empty");
+            return oldest;
         }
-        else
-        {
-            return x.CompareTo(y);
-        }
+        Console.WriteLine($"The oldest item in {dir.Name} is {oldest}");
+        return oldest;
     }
 }
+
+public static class FileSystemInfoExtensions
+{
+    private static string GetDosAttributes(this FileSystemInfo file)
+    {
+        string attributes = "";
+        if ((file.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+        {
+            attributes += "r";
+        }else
+        {
+            attributes += "-";
+        }
+        if ((file.Attributes & FileAttributes.Archive) == FileAttributes.Archive)
+        {
+            attributes += "a";
+        }else
+        {
+            attributes += "-";
+        }
+        if ((file.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden)
+        {
+            attributes += "h";
+        }else
+        {
+            attributes += "-";
+        }
+        if ((file.Attributes & FileAttributes.System) == FileAttributes.System)
+        {
+            attributes += "s";
+        }else
+        {
+            attributes += "-";
+        }
+
+        return attributes;
+    }
+    public static void DisplayDirectoryContents(this DirectoryInfo dir, int indent)
+    {
+        foreach (var subDir in dir.GetDirectories())
+        {
+            Console.WriteLine(new String(' ', indent) + subDir.Name + " (" + subDir.GetFileSystemInfos().Length + $") {GetDosAttributes(subDir)}");
+            DisplayDirectoryContents(subDir, indent + 4);
+        }
+        foreach (var f in dir.GetFiles())
+        {
+            Console.WriteLine(new String(' ', indent) + f.Name + " " + f.Length + " bajtów " + $" {GetDosAttributes(f)}");
+        }
+        
+    }
+}
+
