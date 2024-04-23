@@ -170,9 +170,10 @@ public static class DirectoryInfoExtensions
 
         foreach (var subDir in dir.GetDirectories())
         {
-            if (subDir.CreationTime > newest)
+            DateTime subDirNewest = GetNewestItemDate(subDir);
+            if (subDirNewest > newest)
             {
-                newest = subDir.CreationTime;
+                newest = subDirNewest;
                 newestFile = subDir;
             }
         }
