@@ -23,7 +23,8 @@ class Program
         
         FileSystemInfoExtensions.DisplayDirectoryContents(dir, 0);
         
-        DateTime oldest = dir.GetOldestItemDate();
+        //DateTime oldest = dir.GetOldestItemDate();
+        DateTime newest = dir.GetNewestItemDate();
         
         Console.WriteLine("\n\n");
         SortedDictionary<string, int> filesAndCatalogs = GetFilesAndCatalogsSortedByLength(dir);
@@ -152,6 +153,36 @@ public static class DirectoryInfoExtensions
         }
         Console.WriteLine($"The oldest item in {dir.Name} is {oldest}");
         return oldest;
+    }
+    
+    public static DateTime GetNewestItemDate(this DirectoryInfo dir)
+    {
+        DateTime newest = DateTime.MinValue;
+        FileSystemInfo newestFile = null;
+        foreach (var f in dir.GetFiles())
+        {
+            if (f.CreationTime > newest)
+            {
+                newest = f.CreationTime;
+                newestFile = f;
+            }
+        }
+
+        foreach (var subDir in dir.GetDirectories())
+        {
+            if (subDir.CreationTime > newest)
+            {
+                newest = subDir.CreationTime;
+                newestFile = subDir;
+            }
+        }
+        if(newestFile == null)
+        {
+            Console.WriteLine("Directory is empty!!!");
+            return newest;
+        }
+        Console.WriteLine($"The newest item in {dir.Name} is {newest}");
+        return newest;
     }
 }
 
